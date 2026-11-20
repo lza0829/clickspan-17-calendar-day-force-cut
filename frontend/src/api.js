@@ -22,4 +22,16 @@ export const api = {
   proofs: (sessionId) =>
     req(sessionId ? `/api/session-proofs?session_id=${encodeURIComponent(sessionId)}` : '/api/session-proofs'),
   settings: () => req('/api/settings'),
+  dayBoundaries: (params = {}) => {
+    const qs = new URLSearchParams()
+    if (params.visitorId) qs.set('visitor_id', params.visitorId)
+    if (params.sessionId) qs.set('session_id', params.sessionId)
+    const tail = qs.toString()
+    return req(tail ? `/api/day-boundaries?${tail}` : '/api/day-boundaries')
+  },
+  saveCalendarTimezone: (tz) =>
+    req('/api/settings/calendar-timezone', {
+      method: 'PUT',
+      body: JSON.stringify({ calendar_timezone: tz }),
+    }),
 }

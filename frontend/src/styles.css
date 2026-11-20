@@ -217,6 +217,39 @@ a { color: inherit; text-decoration: none; }
   background: var(--copper-soft);
 }
 
+.day-chip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #efe3d6;
+  border: 1px solid var(--line);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.day-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+}
+.day-mark {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  background: #fbe9dc;
+  border: 1px dashed var(--copper);
+  font-size: 0.76rem;
+}
+.day-mark b {
+  font-family: var(--display);
+  color: var(--copper);
+  letter-spacing: 0.05em;
+}
+
 table.data {
   width: 100%;
   border-collapse: collapse;
@@ -231,3 +264,13 @@ table.data th { color: var(--muted); font-weight: 500; }
 
 .err { color: var(--danger); }
 .ok { color: var(--cyan); }
+
+.drift {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 3px;
+  background: #f6e6c8;
+  color: #8a5a12;
+  font-size: 0.72rem;
+}

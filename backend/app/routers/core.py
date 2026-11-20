@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.db import connect
+from app.modules import calendar_day_force_cut as day_cut
 from app.seed import idle_timeout_sec
 from app.services import ingest as ingest_svc
 from app.services import sessions as sess_svc
@@ -20,6 +21,10 @@ def overview():
             ).fetchone()["c"],
             "quarantine": conn.execute("SELECT COUNT(*) AS c FROM quarantine").fetchone()["c"],
             "idle_timeout_sec": idle_timeout_sec(conn),
+            "calendar_timezone": day_cut.load_timezone(conn),
+            "day_boundaries": conn.execute(
+                "SELECT COUNT(*) AS c FROM day_boundary_edges"
+            ).fetchone()["c"],
         }
     finally:
         conn.close()
@@ -97,7 +102,10 @@ def session_proofs(session_id: str | None = None):
 def get_settings():
     conn = connect()
     try:
-        return {"idle_timeout_sec": idle_timeout_sec(conn)}
+        return {
+            "idle_timeout_sec": idle_timeout_sec(conn),
+            "calendar_timezone": day_cut.load_timezone(conn),
+        }
     finally:
         conn.close()
 
@@ -115,5 +123,63 @@ def put_idle_timeout(body: dict):
         )
         conn.commit()
         return {"idle_timeout_sec": sec}
+    finally:
+        conn.close()
+
+
+@router.put("/settings/calendar-timezone")
+def put_calendar_timezone(body: dict):
+    try:
+        tz_name = day_cut.validate_timezone(body.get("calendar_timezone", ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    conn = connect()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO settings(key, value) VALUES ('calendar_timezone', ?)",
+            (tz_name,),
+        )
+        conn.commit()
+        return {"calendar_timezone": tz_name, "retroactive": False}
+    finally:
+        conn.close()
+
+
+def _edge_payload(conn, row) -> dict:
+    return day_cut.verify_edge(conn, row)
+
+
+@router.get("/day-boundaries")
+def list_day_boundaries(visitor_id: str | None = None, session_id: str | None = None):
+    conn = connect()
+    try:
+        clauses = []
+        params: list[str] = []
+        if visitor_id:
+            clauses.append("visitor_id=?")
+            params.append(visitor_id)
+        if session_id:
+            clauses.append("(from_session_id=? OR to_session_id=?)")
+            params.extend([session_id, session_id])
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        rows = conn.execute(
+            f"SELECT * FROM day_boundary_edges {where} ORDER BY id",
+            params,
+        ).fetchall()
+        return [_edge_payload(conn, r) for r in rows]
+    finally:
+        conn.close()
+
+
+@router.get("/day-boundaries/{edge_id}")
+def get_day_boundary(edge_id: int):
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT * FROM day_boundary_edges WHERE id=?", (edge_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "日界边不存在")
+        return _edge_payload(conn, row)
     finally:
         conn.close()
